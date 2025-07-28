@@ -21,10 +21,6 @@
         <PackageReference Include="BepInEx.PluginInfoProps" Version="2.*"/>
         <PackageReference Include="UnityEngine.Modules" Version="2020.3.44" IncludeAssets="compile"/>
         <PackageReference Include="WobblyLife.GameLibs" Version="0.9.6.5" />
-        
-        <Reference Include="ShadowLib">
-            <HintPath>ShadowLib.dll</HintPath>
-        </Reference>
     </ItemGroup>
 
     <ItemGroup Condition="'$(TargetFramework.TrimEnd(`0123456789`))' == 'net'">

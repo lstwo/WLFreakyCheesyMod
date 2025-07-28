@@ -1,59 +1,60 @@
-using System;
 using System.Linq;
-using HawkNetworking;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace WLButSlenderman;
 
 public class PlayerRevive : MonoBehaviour
 {
-    public PlayerCharacter playerCharacter;
+    public PlayerController playerController;
     public AudioSource audioSource;
 
     private float reviveTime;
 
     public void Kill()
     {
-        if (playerCharacter.HasEnteredAction())
+        if (playerController.GetPlayerCharacter().HasEnteredAction())
         {
-            playerCharacter.GetPlayerController().GetPlayerControllerInteractor().GetEnteredAction().RequestExit(playerCharacter.GetPlayerController());
+            playerController.GetPlayerControllerInteractor().GetEnteredAction().RequestExit(playerController);
         }
         
-        playerCharacter.GetRagdollController().Knockout();
-        playerCharacter.GetRagdollController().LockRagdollState();
-        playerCharacter.GetPlayerController().SetAllowedToRespawn(this, false);
-        playerCharacter.GetPlayerCharacterInput().DisableControls(playerCharacter.GetPlayerController());
-        Enemy.deadPlayers[playerCharacter] = true;
+        playerController.GetPlayerCharacter().GetRagdollController().Knockout();
+        playerController.GetPlayerCharacter().GetRagdollController().LockRagdollState();
+        playerController.SetAllowedToRespawn(this, false);
+        playerController.GetPlayerCharacter().GetPlayerCharacterInput().DisableControls(playerController);
+        playerController.GetPlayerControllerInteractor().SetInteratorInputEnabled(this, false);
+        Enemy.deadPlayers[playerController] = true;
     }
 
     public void Revive()
     {
-        playerCharacter.GetRagdollController().UnlockRagdollState();
-        playerCharacter.GetRagdollController().Wakeup();
-        playerCharacter.GetPlayerController().SetAllowedToRespawn(this, true);
-        playerCharacter.GetPlayerCharacterInput().EnableControls(playerCharacter.GetPlayerController());
-        Enemy.deadPlayers[playerCharacter] = false;
+        playerController.GetPlayerCharacter().GetRagdollController().UnlockRagdollState();
+        playerController.GetPlayerCharacter().GetRagdollController().Wakeup();
+        playerController.SetAllowedToRespawn(this, true);
+        playerController.GetPlayerCharacter().GetPlayerCharacterInput().EnableControls(playerController);
+        playerController.GetPlayerControllerInteractor().SetInteratorInputEnabled(this, true);
+        Enemy.deadPlayers[playerController] = false;
     }
 
     private void Update()
     {
-        if (playerCharacter.IsDestroyed() || !Enemy.deadPlayers.ContainsKey(playerCharacter))
+        if (playerController.IsDestroyed() || !Enemy.deadPlayers.ContainsKey(playerController))
         {
             Destroy(gameObject);
             return;
         }
         
-        if (!Enemy.deadPlayers[playerCharacter])
+        if (!Enemy.deadPlayers[playerController])
         {
             return;
         }
         
-        var myPos = playerCharacter.GetPlayerPosition();
+        var myPos = playerController.GetPlayerCharacter().GetPlayerPosition();
         var isReviving = false;
         
-        foreach (var player in GameInstance.Instance.GetPlayerCharacters().Where(x => !Enemy.deadPlayers[x]))
+        foreach (var player in GameInstance.Instance.GetPlayerCharacters().Where(x => !Enemy.deadPlayers[x.GetPlayerController()]))
         {
-            if (playerCharacter == player)
+            if (playerController.GetPlayerCharacter() == player)
             {
                 continue;
             }

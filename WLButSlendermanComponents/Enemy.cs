@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Linq;
 using HawkNetworking;
 using UnityEngine;
+using UnityEngine.Rendering.PostProcessing;
 using Random = UnityEngine.Random;
 
 namespace WLButSlenderman;
@@ -21,37 +22,53 @@ public class Enemy : HawkNetworkBehaviour
     private Texture2D regularTex;
     private Texture2D chasingTex;
     private MeshRenderer meshRenderer;
+    private Light light;
+    private AudioClip heartBeatClip;
+
+    private float timeSinceLastBlast;
     
-    public static Dictionary<PlayerCharacter, bool> deadPlayers = new();
+    public static Dictionary<PlayerController, bool> deadPlayers = new();
+    private static readonly int Glossiness = Shader.PropertyToID("_Glossiness");
 
     private byte RPC_SOUND;
     private byte RPC_PLAYER_DIE;
+    private byte RPC_INFORM_PLAYER;
 
     protected override void Awake()
     {
         base.Awake();
 
         AssetLoader.LoadAudio(Application.streamingAssetsPath + "/Chase.wav", clip => sounds.Add(State.Chasing, clip));
-        AssetLoader.LoadAudio(Application.streamingAssetsPath + "/Following.wav",
-            clip => sounds.Add(State.Following, clip));
+        AssetLoader.LoadAudio(Application.streamingAssetsPath + "/Following.wav", clip => sounds.Add(State.Following, clip));
         AssetLoader.LoadAudio(Application.streamingAssetsPath + "/Lost.wav", clip => sounds.Add(State.Searching, clip));
+        AssetLoader.LoadAudio(Application.streamingAssetsPath + "/heartbeat.wav", clip => heartBeatClip = clip);
         chasingTex = AssetLoader.LoadTexture(Application.streamingAssetsPath + "/freakycheesychase.png");
         
         GetComponent<SphereCollider>().isTrigger = true;
+        
+        HawkNetworkManager.DefaultInstance.onPlayerAccepted += connection =>
+        {
+            networkObject.SendRPC(RPC_INFORM_PLAYER, connection, CollectibleManager.CollectedPfps);
+        };
+    }
+
+    private void ClientInformPlayer(HawkNetReader reader, HawkRPCInfo info)
+    {
+        CollectibleManager.CollectedPfps = reader.ReadInt32();
     }
 
     private void OnTriggerEnter(Collider other)
     {
         var character = other.gameObject.GetComponentInParent<PlayerCharacter>();
         
-        if (character && !deadPlayers[character])
+        if (character && !deadPlayers[character.GetPlayerController()])
         {
             var id = character.networkObject.GetNetworkID();
             networkObject.SendRPC(RPC_PLAYER_DIE, RPCRecievers.All, id);
             
-            FakePlugin.playerRevives[character].Kill();
+            FakePlugin.playerRevives[character.GetPlayerController()].Kill();
 
-            transform.position = new(0, 200, 0);
+            transform.position = new(0, 500, 0);
         }
     }
 
@@ -59,7 +76,7 @@ public class Enemy : HawkNetworkBehaviour
     {
         var id = reader.ReadUInt32();
         var character = GameInstance.Instance.GetPlayerCharacterByNetworkID(id);
-        deadPlayers[character] = true;
+        deadPlayers[character.GetPlayerController()] = true;
 
         if (character.GetPlayerController().networkObject.IsOwner())
         {
@@ -75,6 +92,8 @@ public class Enemy : HawkNetworkBehaviour
     private void ClientPlaySound(HawkNetReader reader, HawkRPCInfo info)
     {
         var state = (State)reader.ReadByte();
+        var playerId = reader.ReadUInt32();
+        var player = GameInstance.Instance.GetPlayerControllerByNetworkID(playerId);
 
         if (timeSinceLastSound > 6)
         {
@@ -85,10 +104,37 @@ public class Enemy : HawkNetworkBehaviour
         if (state == State.Chasing)
         {
             meshRenderer.material.mainTexture = chasingTex;
+            
+            print(player);
+            print(player?.networkObject);
+            print(player?.networkObject?.IsOwner());
+            print(player?.GetGameplayCamera());
+
+            if (player?.networkObject == null || !player.networkObject.IsOwner() || !player.GetGameplayCamera())
+            {
+                return;
+            }
+
+            if (FakePlugin.heartBeatSource == null)
+            {
+                FakePlugin.heartBeatSource = player.GetGameplayCamera().gameObject.AddComponent<AudioSource>();
+                FakePlugin.heartBeatSource.loop = true;
+                FakePlugin.heartBeatSource.clip = heartBeatClip;
+            }
+            
+            FakePlugin.heartBeatSource.Play();
+            FakePlugin.ToggleEffects(true);
         }
         else
         {
             meshRenderer.material.mainTexture = regularTex;
+
+            if (FakePlugin.heartBeatSource != null && FakePlugin.heartBeatSource.isPlaying)
+            {
+                FakePlugin.heartBeatSource?.Stop();
+            }
+            
+            FakePlugin.ToggleEffects(false);
         }
     }
 
@@ -98,6 +144,7 @@ public class Enemy : HawkNetworkBehaviour
 
         RPC_PLAYER_DIE = networkObject.RegisterRPC(ClientPlayerDie);
         RPC_SOUND = networkObject.RegisterRPC(ClientPlaySound);
+        RPC_INFORM_PLAYER = networkObject.RegisterRPC(ClientInformPlayer);
     }
 
     protected override void NetworkStart(HawkNetworkObject networkObject)
@@ -105,9 +152,15 @@ public class Enemy : HawkNetworkBehaviour
         base.NetworkStart(networkObject);
         meshRenderer = GetComponentInChildren<MeshRenderer>();
         audioSource = GetComponent<AudioSource>();
+
+        audioSource.dopplerLevel = 0;
+        audioSource.spatialBlend = 1;
+
+        light = GetComponentInChildren<Light>();
         
-        var mat = new Material(Shader.Find("Unlit/Texture"));
+        var mat = new Material(Shader.Find("Standard"));
         mat.mainTexture = FakePlugin.freakyCheesyTex;
+        mat.SetFloat(Glossiness, 0);
         meshRenderer.material = mat;
         regularTex = FakePlugin.freakyCheesyTex;
     }
@@ -131,7 +184,7 @@ public class Enemy : HawkNetworkBehaviour
         {
             yield return wait;
 
-            var players = GameInstance.Instance.GetPlayerCharacters().Where(x => !deadPlayers[x]);
+            var players = GameInstance.Instance.GetPlayerControllers().Where(x => !deadPlayers[x]);
             
             PlayerCharacter closestVisiblePlayer = null;
             var closestVisiblePlayerDistance = float.MaxValue;
@@ -139,7 +192,12 @@ public class Enemy : HawkNetworkBehaviour
 
             foreach (var player in players)
             {
-                var playerPos = player.GetPlayerPosition();
+                if (player.GetPlayerCharacter() is null)
+                {
+                    continue;
+                }
+                
+                var playerPos = player.GetPlayerCharacter().GetPlayerPosition();
                 var distanceToPlayer = Vector3.Distance(playerPos, transform.position);
                 var directionToPlayer = (playerPos - transform.position).normalized;
                 var seesPlayer = Physics.Raycast(transform.position, directionToPlayer, out var hit, 1000)
@@ -147,7 +205,7 @@ public class Enemy : HawkNetworkBehaviour
                 
                 if (distanceToPlayer < closestVisiblePlayerDistance && seesPlayer)
                 {
-                    closestVisiblePlayer = player;
+                    closestVisiblePlayer = player.GetPlayerCharacter();
                     closestVisiblePlayerDistance = distanceToPlayer;
                 }
 
@@ -173,12 +231,31 @@ public class Enemy : HawkNetworkBehaviour
             
             if (closestVisiblePlayer is not null && closestVisiblePlayerDistance <= 150f)
             {
+                var closeByPlayers = players.Select(player => Vector3.Distance(player.GetPlayerCharacter().GetPlayerPosition(), closestVisiblePlayer.GetPlayerPosition())).Count(distance => distance <= 10);
+
+                if (false && CollectibleManager.CollectedPfps >= CollectibleManager.totalPfps / 2f &&
+                    Random.value <= 0.25f + 0.05f * closeByPlayers)
+                {
+                    var bounds = new Bounds();
+                    
+                    foreach (var player in players)
+                    {
+                        if (Vector3.Distance(player.GetPlayerCharacter().GetPlayerPosition(),
+                                closestVisiblePlayer.GetPlayerPosition()) <= 10f)
+                        {
+                            bounds.Encapsulate(player.GetPlayerCharacter().GetPlayerPosition());
+                        }
+                    }
+
+                    StartCoroutine(ShootRoutine(4 + closeByPlayers, transform.position + bounds.center.normalized * 1000f, 5f + closeByPlayers * 4f));
+                }
+                
                 targetPos = closestVisiblePlayer.GetPlayerPosition();
                 state = State.Chasing;
                 timeSinceLastSeen = 0;
                 currentlyChasingPlayer = closestVisiblePlayer;
 
-                networkObject.SendRPCUnreliable(RPC_SOUND, RPCRecievers.All, (byte)State.Chasing);
+                networkObject.SendRPC(RPC_SOUND, RPCRecievers.All, (byte)State.Chasing, currentlyChasingPlayer.GetPlayerController().networkObject.GetNetworkID());
                 
                 continue;
             }
@@ -201,7 +278,7 @@ public class Enemy : HawkNetworkBehaviour
             {
                 if (state == State.Searching)
                 {
-                    networkObject.SendRPCUnreliable(RPC_SOUND, RPCRecievers.All, (byte)State.Following);
+                    networkObject.SendRPC(RPC_SOUND, RPCRecievers.All, (byte)State.Following, 0u);
                 }
                 
                 targetPos = closestVisiblePlayer.GetPlayerPosition();
@@ -228,10 +305,21 @@ public class Enemy : HawkNetworkBehaviour
 
             if (state != State.Searching)
             {
-                networkObject.SendRPCUnreliable(RPC_SOUND, RPCRecievers.All, (byte)State.Searching);
+                networkObject.SendRPC(RPC_SOUND, RPCRecievers.All, (byte)State.Searching, 0u);
             }
                     
             state = State.Searching;
+        }
+    }
+
+    private IEnumerator ShootRoutine(int count, Vector3 targetPos, float broadness)
+    {
+        for (var i = 0; i < count; i++)
+        {
+            var bulletBehaviour = NetworkPrefab.SpawnNetworkPrefab(FakePlugin.enemyBulletPrefab, transform.position, Quaternion.identity) as EnemyBullet;
+            bulletBehaviour.finalTargetPos = Quaternion.AngleAxis(Random.Range(-broadness, broadness), Random.insideUnitSphere) * targetPos;
+            print("BULLET");
+            yield return new WaitForSeconds(0.1f);
         }
     }
 
@@ -250,6 +338,9 @@ public class Enemy : HawkNetworkBehaviour
         }
         
         timeSinceLastSeen += Time.deltaTime;
+        
+        var targetRot = Quaternion.LookRotation(targetPos - transform.position);
+        light.transform.localRotation = Quaternion.Slerp(light.transform.localRotation, targetRot, Time.deltaTime * 10f);
     }
 
     private void FixedUpdate()
@@ -265,9 +356,12 @@ public class Enemy : HawkNetworkBehaviour
             State.Searching => 10,
             State.Following => 15,
         };
+        
+        var progress = Mathf.Clamp01((float)CollectibleManager.CollectedPfps / CollectibleManager.totalPfps);
+        var speedMultiplier = 1f + progress;
 
         var direction = (targetPos - transform.position).normalized;
-        transform.position += direction * (speed * Time.fixedDeltaTime);
+        transform.position += direction * (speed * speedMultiplier * Time.fixedDeltaTime);
     }
 
     private enum State : byte

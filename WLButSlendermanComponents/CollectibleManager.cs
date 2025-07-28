@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using System.Diagnostics;
 using UnityEngine;
 
@@ -6,9 +5,8 @@ namespace WLButSlenderman;
 
 public static class CollectibleManager
 {
-    private static int collectedPfps = 0;
-    public static int totalPfps = 0;
-    public static List<uint> collectedPfpsIds = new();
+    private static int collectedPfps;
+    public static int totalPfps => FakePlugin.collectiblesCount;
     
     public static int CollectedPfps
     {
@@ -16,11 +14,17 @@ public static class CollectibleManager
         set
         {
             collectedPfps = value;
+
+            if (collectedPfps == (int)totalPfps / 2)
+            {
+                if(FakePlugin.heartBeatSource != null)
+                    FakePlugin.heartBeatSource.PlayOneShot(FakePlugin.uhh);
+            }
 		    
             if (collectedPfps >= totalPfps)
             {
                 Process.Start($"{Application.streamingAssetsPath}/end.wav");
-                Application.Quit();
+                //Application.Quit();
             }
         }
     }

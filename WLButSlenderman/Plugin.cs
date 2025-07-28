@@ -1,16 +1,13 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Diagnostics;
+﻿using System.Collections;
+using System.IO;
 using System.Linq;
+using System.Reflection;
 using BepInEx;
-using BepInEx.Logging;
 using HarmonyLib;
 using HawkNetworking;
-using ShadowLib;
-using TMPro;
 using UnityEngine;
 using UnityEngine.Rendering;
+using UnityEngine.Rendering.PostProcessing;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using Random = UnityEngine.Random;
@@ -22,23 +19,43 @@ public class Plugin : BaseUnityPlugin
 {
 	internal static Plugin Instance;
 
-	private bool registeredPrefabs = false;
+	private bool registeredPrefabs;
+	
+	public static AssetBundle LoadFromEmbeddedResources(string assetBundleResourceName)
+	{
+		return AssetBundle.LoadFromMemory(ReadFully(Assembly.GetCallingAssembly().GetManifestResourceStream(assetBundleResourceName)));
+	}
+    
+	private static byte[] ReadFully(Stream input)
+	{
+		using var ms = new MemoryStream();
+		var buffer = new byte[81920];
+		int read;
+        
+		while ((read = input.Read(buffer, 0, buffer.Length)) != 0)
+		{
+			ms.Write(buffer, 0, read);
+		}
+        
+		return ms.ToArray();
+	}
 
     private void Awake()
     {
 	    FakePlugin.startCoroutine += _StartCoroutine;
 	    
         Instance = this;
-        FakePlugin.Logger = base.Logger;
 
-        FakePlugin.bundle = AssetUtils.LoadFromEmbeddedResources("WLButSlenderman.Resources.lstwo.wlbutslenderman.bundle");
+        FakePlugin.bundle = LoadFromEmbeddedResources("WLButSlenderman.Resources.lstwo.wlbutslenderman.bundle");
 
         FakePlugin.enemyPrefab = FakePlugin.bundle.LoadAsset<GameObject>("Freak");
         FakePlugin.collectiblePrefab = FakePlugin.bundle.LoadAsset<GameObject>("Quad");
+        FakePlugin.chasingPostProcessing = FakePlugin.bundle.LoadAsset<PostProcessProfile>("pp");
+        FakePlugin.enemyBulletPrefab = FakePlugin.bundle.LoadAsset<GameObject>("Freak Small");
 
-        GameInstance.onAssignedPlayerCharacter += character =>
+        GameInstance.onAssignedPlayerController += controller =>
         {
-	        Enemy.deadPlayers.Add(character, false);
+	        Enemy.deadPlayers.Add(controller, false);
 	        var go = new GameObject("revive");
 	        var revive = go.AddComponent<PlayerRevive>();
 	        var source = go.AddComponent<AudioSource>();
@@ -46,19 +63,23 @@ public class Plugin : BaseUnityPlugin
 	        source.loop = false;
 	        source.clip = FakePlugin.freakyCheesyClip;
 	        revive.audioSource = source;
-	        revive.playerCharacter = character;
-	        
-	        FakePlugin.playerRevives.Add(character, revive);
+	        revive.playerController = controller;
+	        FakePlugin.playerRevives.Add(controller, revive);
+        };
+        
+        GameInstance.onAssignedPlayerCharacter += character =>
+        {
+	        StartCoroutine(OnAssignedPlayerCharacter(character));
         };
         
         GameInstance.onUnassignedPlayerCharacter += character =>
         {
-	        Enemy.deadPlayers.Remove(character);
-	        FakePlugin.playerRevives.Remove(character);
+	        character.GetPlayerController().SetAllowedToRespawn(FakePlugin.playerRevives, true);
         };
         
         FakePlugin.freakyCheesyTex = AssetLoader.LoadTexture(Application.streamingAssetsPath + "/freakycheesy.png");
         AssetLoader.LoadAudio(Application.streamingAssetsPath + "/freakycheesy.wav", clip => FakePlugin.freakyCheesyClip = clip);
+        AssetLoader.LoadAudio(Application.streamingAssetsPath + "/shoot.wav", clip => FakePlugin.uhh = clip);
         
         SceneManager.sceneLoaded += (scene, loadMode) =>
         {
@@ -122,11 +143,27 @@ public class Plugin : BaseUnityPlugin
         Logger.LogInfo($"Plugin {MyPluginInfo.PLUGIN_GUID} is loaded!");
     }
 
-    
+    private IEnumerator OnAssignedPlayerCharacter(PlayerCharacter character)
+    {
+	    yield return new WaitUntil(() => character.GetPlayerController() != null);
+	    
+	    if (Enemy.deadPlayers[character.GetPlayerController()])
+	    {
+		    FakePlugin.playerRevives[character.GetPlayerController()].Kill();
+	    }
+    }
 
     private IEnumerator OnWobblyIslandSceneLoaded()
     {
         yield return new WaitUntil(() => GameInstance.InstanceExists && HawkNetworkManager.InstanceExists);
+        
+        {
+	        var obj = new GameObject("Chasing Post Processing");
+	        obj.layer = LayerMask.NameToLayer("PostProcessing");
+	        FakePlugin.chasingVolume = obj.AddComponent<PostProcessVolume>();
+	        FakePlugin.chasingVolume.sharedProfile = FakePlugin.chasingPostProcessing;
+	        FakePlugin.chasingVolume.isGlobal = true;
+        }
 
         CreateEnemy();
         CreateAllPfps();
@@ -222,7 +259,7 @@ public class Plugin : BaseUnityPlugin
     {
 	    if (GameInstance.InstanceExists && GameInstance.Instance.GetGamemode())
 	    {	    
-		    GUI.Box(new(5, 5, 300, 32), $"Collected Freaky Pictures: {CollectibleManager.CollectedPfps} / {CollectibleManager.totalPfps}");
+		    GUI.Box(new(5, 5, 300, 32), $"Collected Pictures: {CollectibleManager.CollectedPfps} / {CollectibleManager.totalPfps}");
 	    }
     }
 
@@ -236,9 +273,17 @@ public class Plugin : BaseUnityPlugin
 	    Vector3[] spots = [new(294f, 49f, -259f), new(-57f, 49f, -247f), new(-387f, 46f, -168f), new(-597f, 60f, -286f), 
 		    new(-1189f, 66f, 170f), new(-1158.403f, 61f, 810.6613f), new(-913f, 76f, 922f), new(-393f, 227f, 709f),
 			new(-92.5635f, 252f, 857.1072f), new(912f, 75f, 572f), new(936.3882f, 88.4171f, -867.5385f),
-			new(622.9495f, 19.2098f, -1195.892f), new(-369.6806f, 42.5922f, -318.5412f)];
+			new(622.9495f, 19.2098f, -1195.892f), new(-369.6806f, 42.5922f, -318.5412f), new(246.609f, 49.4004f, -221.48f),
+			new(506.0774f, 43.1418f, -238.0443f), new(572.5466f, 42.2941f, -471.4037f), new(498.7458f, 14.3197f, -1292.79f),
+			new(635.316f, 20.1038f, -980.0083f), new(781.0983f, 40.5622f, -946.0887f), new(988.8947f, 119.9751f, -549.9417f),
+			new(506.3011f, 41.4432f, -7.5293f), new(254.0866f, 41.5806f, -182.1587f), new(-383.5231f, 42.8141f, -81.185f),
+			new(-1041.381f, 58.6886f, 52.1031f), new(-1113.82f, 58.7989f, -132.1369f), new(-1201.591f, 64.3791f, 1025.008f),
+			new(-611.4904f, 130.2777f, 994.1306f), new(-193.4097f, 131.7193f, 978.3655f), new(365.6877f, 25.8435f, 269.9019f),
+			new(498.4528f, 41.9183f, -13.7343f), new(-748.7183f, 14.4481f, -651.1661f), new(-762.3329f, 73.2099f, -333.3555f),
+			new(-101.4237f, 41.0892f, -90.2869f), new(-194.5528f, 41.6513f, -453.3484f), new(529.0341f, 16.6598f, -1073.509f),
+			new(713.16f, 9.8806f, 41.5867f), new(-245.3932f, 108.6252f, -234.352f), new(262.1812f, 34.4148f, 12.4593f)];
 
-	    foreach (var _ in FakePlugin.texFileNames)
+	    for (var i = 0; i < FakePlugin.collectiblesCount * 2; i++)
 	    {
 		    var spot = spots[Random.Range(0, spots.Length)];
 		    var newSpotsList = spots.ToList();
@@ -247,8 +292,6 @@ public class Plugin : BaseUnityPlugin
 
 		    NetworkPrefab.SpawnNetworkPrefab(FakePlugin.collectiblePrefab.gameObject, spot, bSendTransform: true);
 	    }
-	    
-	    CollectibleManager.totalPfps = FakePlugin.texFileNames.Length;
     }
     
     /*private bool GetValidSpot(out Vector3 validSpot)
