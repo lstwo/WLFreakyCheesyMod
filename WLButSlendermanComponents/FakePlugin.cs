@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering.PostProcessing;
+using UnityEngine.Video;
 using Object = UnityEngine.Object;
 
 namespace WLButSlenderman;
@@ -25,7 +26,9 @@ public class FakePlugin
     public static AudioClip shootSound;
     
     public static Dictionary<PlayerController, PlayerRevive> playerRevives = new();
-    public static int collectiblesCount = 25;
+    public static int collectiblesCount = 40;
+
+    public static VideoPlayer jumpscare;
 
     public static Action<IEnumerator> startCoroutine;
     

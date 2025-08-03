@@ -1,6 +1,7 @@
 using FMOD;
 using FMOD.Studio;
 using HarmonyLib;
+using UnityEngine;
 
 namespace WLButSlenderman;
 
@@ -22,6 +23,7 @@ public static class Patches
     [HarmonyPostfix]
     public static void PlayerNPCController_OnEnable_Postfix(ref PlayerNPCController __instance)
     {
-        __instance.gameObject.SetActive(false);
+        __instance.GetComponentsInChildren<Renderer>().Do(x => x.enabled = false);
+        __instance.GetComponentsInChildren<Collider>().Do(x => x.enabled = false);
     }
 }

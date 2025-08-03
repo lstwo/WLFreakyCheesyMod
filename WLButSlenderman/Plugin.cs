@@ -10,6 +10,7 @@ using UnityEngine.Rendering;
 using UnityEngine.Rendering.PostProcessing;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
+using UnityEngine.Video;
 using Random = UnityEngine.Random;
 
 namespace WLButSlenderman;
@@ -164,6 +165,19 @@ public class Plugin : BaseUnityPlugin
 	        FakePlugin.chasingVolume.sharedProfile = FakePlugin.chasingPostProcessing;
 	        FakePlugin.chasingVolume.isGlobal = true;
         }
+        
+        FakePlugin.jumpscare = FakePlugin.bundle.LoadAsset<GameObject>("Video Player").GetComponent<VideoPlayer>();
+
+        {
+	        var obj = new GameObject("Jumpscare");
+	        var video = obj.AddComponent<VideoPlayer>();
+	        video.url = Application.streamingAssetsPath + "/jump.mp4";
+	        video.renderMode = VideoRenderMode.CameraNearPlane;
+	        video.playOnAwake = false;
+	        video.loopPointReached += source => obj.SetActive(false);
+	        FakePlugin.jumpscare = video;
+	        obj.SetActive(false);
+        }
 
         CreateEnemy();
         CreateAllPfps();
@@ -281,9 +295,15 @@ public class Plugin : BaseUnityPlugin
 			new(-611.4904f, 130.2777f, 994.1306f), new(-193.4097f, 131.7193f, 978.3655f), new(365.6877f, 25.8435f, 269.9019f),
 			new(498.4528f, 41.9183f, -13.7343f), new(-748.7183f, 14.4481f, -651.1661f), new(-762.3329f, 73.2099f, -333.3555f),
 			new(-101.4237f, 41.0892f, -90.2869f), new(-194.5528f, 41.6513f, -453.3484f), new(529.0341f, 16.6598f, -1073.509f),
-			new(713.16f, 9.8806f, 41.5867f), new(-245.3932f, 108.6252f, -234.352f), new(262.1812f, 34.4148f, 12.4593f)];
+			new(713.16f, 9.8806f, 41.5867f), new(-245.3932f, 108.6252f, -234.352f), new(262.1812f, 34.4148f, 12.4593f),
+			new(-297.1208f, 40.3317f, -237.04f), new(-104.2552f, 41.9058f, -491.4051f), new(-171.9851f, 40.5005f, -102.9576f),
+			new(-402.5305f, 67.8559f, -25.393f), new(-763.9642f, 29.7214f, -29.0325f), new(-741.6143f, 83.6754f, -209.9814f),
+			new(-502.137f, 21.8795f, -280.9422f), new(-551.1703f, 18.8757f, -286.0651f), new(-408.0037f, 16.3215f, -361.3376f),
+			new(247.7323f, 26.136f, 262.7375f), new(-289.5761f, 60.0137f, -90.5203f), new(-159.0374f, 49.4201f, 33.4812f),
+			new(-1179.628f, 58.3147f, -23.8814f), new(-1211.265f, 61.1692f, 274.9843f), new(-669.1355f, -158.1355f, 1093.641f),
+			new(-538.5768f, 158.9185f, 738.158f), new(-233.9852f, 28.4787f, -711.948f)];
 
-	    for (var i = 0; i < FakePlugin.collectiblesCount * 2; i++)
+	    for (var i = 0; i < 50; i++)
 	    {
 		    var spot = spots[Random.Range(0, spots.Length)];
 		    var newSpotsList = spots.ToList();

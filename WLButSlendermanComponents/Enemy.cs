@@ -68,7 +68,7 @@ public class Enemy : HawkNetworkBehaviour
             
             FakePlugin.playerRevives[character.GetPlayerController()].Kill();
 
-            transform.position = new(0, 500, 0);
+            transform.position = new(Random.Range(-1000, 1000), 500, Random.Range(-1000, 1000));
         }
     }
 
@@ -80,12 +80,14 @@ public class Enemy : HawkNetworkBehaviour
 
         if (character.GetPlayerController().networkObject.IsOwner())
         {
-            Process.Start(Application.streamingAssetsPath + "/jump.mp4");
+            FakePlugin.jumpscare.gameObject.SetActive(true);
+            FakePlugin.jumpscare.targetCamera = character.GetGameplayCamera().GetCamera();
+            FakePlugin.jumpscare.Play();
         }
         
         if (deadPlayers.All(x => x.Value || !x.Key))
         {
-            Application.Quit();
+            //Application.Quit();
         }
     }
 
@@ -219,22 +221,41 @@ public class Enemy : HawkNetworkBehaviour
 
             if (state == State.Chasing && currentlyChasingPlayer && !currentlyChasingPlayer.IsDestroyed())
             {
-                if (Vector3.Distance(transform.position, currentlyChasingPlayer.GetPlayerPosition()) <= 150f)
+                if (Vector3.Distance(transform.position, currentlyChasingPlayer.GetPlayerPosition()) <= 150f && closestVisiblePlayer == currentlyChasingPlayer)
                 {
                     targetPos = currentlyChasingPlayer.GetPlayerPosition();
                     timeSinceLastSeen = 0;
                     continue;
                 }
+                
+                if (Vector3.Distance(transform.position, currentlyChasingPlayer.GetPlayerPosition()) <= 150f)
+                {
+                    if (Vector3.Distance(transform.position, targetPos) <= 1f)
+                    {
+                        var searchPos = transform.position +
+                                        new Vector3(Random.Range(-50, 50), 1000, Random.Range(-50, 50));
+                        if (timeSinceLastSeen < 10)
+                        {
+                            Physics.Raycast(searchPos, Vector3.down, out var searchHit, 3000);
+                            targetPos = searchHit.point + Vector3.up * 2;
+                        }
+                        else
+                        {
+                            Physics.Raycast(searchPos, Vector3.down, out var searchHit, 3000);
+                            targetPos = searchHit.point + Vector3.up * 100;
+                        }
+                    }
 
-                state = State.Following;
+                    continue;
+                }
             }
             
             if (closestVisiblePlayer is not null && closestVisiblePlayerDistance <= 150f)
             {
                 var closeByPlayers = players.Select(player => Vector3.Distance(player.GetPlayerCharacter().GetPlayerPosition(), closestVisiblePlayer.GetPlayerPosition())).Count(distance => distance <= 10);
 
-                if (false && CollectibleManager.CollectedPfps >= CollectibleManager.totalPfps / 2f &&
-                    Random.value <= 0.25f + 0.05f * closeByPlayers)
+                /*if (CollectibleManager.CollectedPfps >= CollectibleManager.totalPfps / 2f &&
+                    (Random.value <= 0.25f + 0.05f * closeByPlayers || true))
                 {
                     var bounds = new Bounds();
                     
@@ -248,7 +269,7 @@ public class Enemy : HawkNetworkBehaviour
                     }
 
                     StartCoroutine(ShootRoutine(4 + closeByPlayers, transform.position + bounds.center.normalized * 1000f, 5f + closeByPlayers * 4f));
-                }
+                }*/
                 
                 targetPos = closestVisiblePlayer.GetPlayerPosition();
                 state = State.Chasing;
@@ -260,23 +281,9 @@ public class Enemy : HawkNetworkBehaviour
                 continue;
             }
 
-            if (closestPlayerDistance <= 150f && closestVisiblePlayer is null)
-            {
-                if (distanceToTargetPos <= 1f && state == State.Searching)
-                {
-                    var searchPos = transform.position +
-                                    new Vector3(Random.Range(-100, 100), 1000, Random.Range(-100, 100));
-                    Physics.Raycast(searchPos, Vector3.down, out var searchHit, 2000);
-                    targetPos = searchHit.point + Vector3.up * 2;
-                }
-                    
-                state = State.Searching;
-                continue;
-            }
-
             if (closestVisiblePlayer is not null && closestVisiblePlayerDistance > 150f)
             {
-                if (state == State.Searching)
+                if (state != State.Following)
                 {
                     networkObject.SendRPC(RPC_SOUND, RPCRecievers.All, (byte)State.Following, 0u);
                 }
