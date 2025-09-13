@@ -23,7 +23,7 @@ public class Enemy : HawkNetworkBehaviour
     private Texture2D chasingTex;
     private MeshRenderer meshRenderer;
     private Light light;
-    private AudioClip heartBeatClip;
+    internal static AudioClip heartBeatClip;
 
     private float timeSinceLastBlast;
     
@@ -46,10 +46,18 @@ public class Enemy : HawkNetworkBehaviour
         
         GetComponent<SphereCollider>().isTrigger = true;
         
+        transform.position = new(Random.Range(-1000, 1000), 1000, Random.Range(-1000, 1000));
+        
         HawkNetworkManager.DefaultInstance.onPlayerAccepted += connection =>
         {
             networkObject.SendRPC(RPC_INFORM_PLAYER, connection, CollectibleManager.CollectedPfps);
         };
+
+        if (FindObjectOfType<AudioListener>() == null)
+        {
+            GameInstance.Instance.GetFirstLocalPlayerController().GetGameplayCamera().gameObject
+                .AddComponent<AudioListener>();
+        }
     }
 
     private void ClientInformPlayer(HawkNetReader reader, HawkRPCInfo info)

@@ -57,6 +57,7 @@ public class Plugin : BaseUnityPlugin
         GameInstance.onAssignedPlayerController += controller =>
         {
 	        Enemy.deadPlayers.Add(controller, false);
+	        controller.ServerSetAllowedCustomClothingAbilities(false);
 	        var go = new GameObject("revive");
 	        var revive = go.AddComponent<PlayerRevive>();
 	        var source = go.AddComponent<AudioSource>();
@@ -66,6 +67,7 @@ public class Plugin : BaseUnityPlugin
 	        revive.audioSource = source;
 	        revive.playerController = controller;
 	        FakePlugin.playerRevives.Add(controller, revive);
+	        controller.ServerSetAllowedCustomClothingAbilities(false);
         };
         
         GameInstance.onAssignedPlayerCharacter += character =>
@@ -81,6 +83,8 @@ public class Plugin : BaseUnityPlugin
         FakePlugin.freakyCheesyTex = AssetLoader.LoadTexture(Application.streamingAssetsPath + "/freakycheesy.png");
         AssetLoader.LoadAudio(Application.streamingAssetsPath + "/freakycheesy.wav", clip => FakePlugin.freakyCheesyClip = clip);
         AssetLoader.LoadAudio(Application.streamingAssetsPath + "/shoot.wav", clip => FakePlugin.uhh = clip);
+
+        FakePlugin.SpawnNewEnemy += CreateEnemy;
         
         SceneManager.sceneLoaded += (scene, loadMode) =>
         {
@@ -95,6 +99,7 @@ public class Plugin : BaseUnityPlugin
             
             if (WeatherSystem.InstanceExists)
             {
+	            WeatherSystem.Instance.ServerSetWeatherByIndex(4);
                 WeatherSystem.Instance.gameObject.SetActive(false);
             }
 
@@ -107,7 +112,8 @@ public class Plugin : BaseUnityPlugin
             {
                 color = new Color(0f, 0f, 0f)
             };
-            RenderSettings.ambientLight = new Color(0.2f, 0.2f, 0.2f);
+            RenderSettings.ambientLight = new Color(0.01f, 0.01f, 0.01f);
+            RenderSettings.reflectionIntensity = 0f;
             RenderSettings.ambientMode = AmbientMode.Flat;
             RenderSettings.fog = true;
             RenderSettings.fogDensity = 0.025f;
@@ -178,6 +184,11 @@ public class Plugin : BaseUnityPlugin
 	        FakePlugin.jumpscare = video;
 	        obj.SetActive(false);
         }
+
+        /*{
+	        var obj = new GameObject("WindManager");
+	        var windManager = obj.AddComponent<WindManager>();
+        }*/
 
         CreateEnemy();
         CreateAllPfps();
@@ -259,7 +270,7 @@ public class Plugin : BaseUnityPlugin
         arcadeBtn.onClick = onArcadeBtnClick;
     }
 
-    private void CreateEnemy()
+    public static void CreateEnemy()
     {
 	    if (!HawkNetworkManager.InstanceExists || !HawkNetworkManager.DefaultInstance.GetMe().IsHost)
 	    {

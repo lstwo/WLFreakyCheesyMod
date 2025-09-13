@@ -5,11 +5,14 @@ using UnityEngine;
 using UnityEngine.Rendering.PostProcessing;
 using UnityEngine.Video;
 using Object = UnityEngine.Object;
+using Random = UnityEngine.Random;
 
 namespace WLButSlenderman;
 
 public class FakePlugin
 {
+    public static Action SpawnNewEnemy;
+    
     public static AssetBundle bundle;
     public static Texture2D freakyCheesyTex;
     public static AudioClip freakyCheesyClip;
@@ -47,12 +50,55 @@ public class FakePlugin
             layer.enabled = true;
         }
         
-        if (chasingVolume.weight == 1f && !b)
+        if (chasingVolume.weight == 1 && !b)
         {
             chasingVolume.weight = 0f;
             var layer = Object.FindObjectOfType<GameplayCamera>().GetComponent<PostProcessLayer>();
             layer.enabled = false;
             layer.enabled = true;
+        }
+    }
+
+    public static IEnumerator TeleportRoutine(PlayerController player)
+    {
+        while (GameInstance.Instance.GetGamemode())
+        {
+            yield return new WaitForSeconds(Random.Range(30f, 300f));
+
+            if (!player.GetPlayerCharacter())
+            {
+                continue;
+            }
+
+            if (player.GetPlayerCharacter().HasEnteredAction())
+            {
+                if (player.GetPlayerControllerInteractor().GetEnteredAction() is ActionEnterExitInteract
+                    actionEnterExitInteract)
+                    actionEnterExitInteract.EvacuatePlayer(player, false);
+                else
+                    player.GetPlayerControllerInteractor().GetEnteredAction().RequestExit(player);
+            }
+
+            Vector3? pos = null;
+
+            for (var i = 0; i < 1000; i++)
+            {
+                var checkPos = new Vector3(Random.Range(-1000f, 1000f), 1000, Random.Range(-1000f, 1000f));
+
+                if (!Physics.Raycast(checkPos, Vector3.down, out var hit, 5000f) ||
+                    hit.collider.gameObject.layer == LayerMask.NameToLayer("Water"))
+                {
+                    continue;
+                }
+
+                pos = new Vector3(checkPos.x, hit.point.y + 5f, checkPos.z);
+                break;
+            }
+
+            if (pos.HasValue)
+            {
+                player.GetPlayerCharacter().SetPlayerPosition(pos.Value);
+            }
         }
     }
 }
