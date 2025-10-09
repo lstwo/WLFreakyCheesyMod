@@ -40,6 +40,8 @@ public class Plugin : BaseUnityPlugin
         
 		return ms.ToArray();
 	}
+	
+	private static Material skyboxMaterial;
 
     private void Awake()
     {
@@ -107,11 +109,16 @@ public class Plugin : BaseUnityPlugin
             {
                 PlayerAmbientManager.Instance.gameObject.SetActive(false);
             }
-            
-            RenderSettings.skybox = new Material(Shader.Find("Unlit/Color"))
+
+            if (skyboxMaterial == null)
             {
-                color = new Color(0f, 0f, 0f)
-            };
+	            var handle = UnityEngine.AddressableAssets.Addressables.LoadAssetAsync<Shader>("Assets/Content/Game/Shader/Amplify/Custom/UnlitColour.shader");
+	            handle.WaitForCompletion();
+	            var result = handle.Result;
+	            skyboxMaterial = new Material(result) { color = new Color(0,0,0,0) };
+            }
+            
+            RenderSettings.skybox = skyboxMaterial;
             RenderSettings.ambientLight = new Color(0.01f, 0.01f, 0.01f);
             RenderSettings.reflectionIntensity = 0f;
             RenderSettings.ambientMode = AmbientMode.Flat;
