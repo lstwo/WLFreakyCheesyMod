@@ -22,3 +22,5 @@ Collect 40 pictures while freaky cheesy is chasing you. Once all players have be
 ## Credits
 
 voice acting and most art by [freakycheesy](https://github.com/freakycheesy)
+
+Licensed under the [lstwoSTUDIOS License v3.0](https://github.com/lstwo/license/blob/main/LICENSE.md)
