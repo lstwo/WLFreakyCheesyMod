@@ -12,6 +12,8 @@ namespace WLButSlenderman;
 
 public class FakePlugin
 {
+    public static string AssetsPath;
+    
     public static Action SpawnNewEnemy;
     
     public static AssetBundle bundle;

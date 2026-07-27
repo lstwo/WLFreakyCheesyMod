@@ -39,11 +39,11 @@ public class Enemy : HawkNetworkBehaviour
     {
         base.Awake();
 
-        AssetLoader.LoadAudio(Application.streamingAssetsPath + "/Chase.wav", clip => sounds.Add(State.Chasing, clip));
-        AssetLoader.LoadAudio(Application.streamingAssetsPath + "/Following.wav", clip => sounds.Add(State.Following, clip));
-        AssetLoader.LoadAudio(Application.streamingAssetsPath + "/Lost.wav", clip => sounds.Add(State.Searching, clip));
-        AssetLoader.LoadAudio(Application.streamingAssetsPath + "/heartbeat.wav", clip => heartBeatClip = clip);
-        chasingTex = AssetLoader.LoadTexture(Application.streamingAssetsPath + "/freakycheesychase.png");
+        AssetLoader.LoadAudio(FakePlugin.AssetsPath + "/Chase.wav", clip => sounds.Add(State.Chasing, clip));
+        AssetLoader.LoadAudio(FakePlugin.AssetsPath + "/Following.wav", clip => sounds.Add(State.Following, clip));
+        AssetLoader.LoadAudio(FakePlugin.AssetsPath + "/Lost.wav", clip => sounds.Add(State.Searching, clip));
+        AssetLoader.LoadAudio(FakePlugin.AssetsPath + "/heartbeat.wav", clip => heartBeatClip = clip);
+        chasingTex = AssetLoader.LoadTexture(FakePlugin.AssetsPath + "/freakycheesychase.png");
         
         GetComponent<SphereCollider>().isTrigger = true;
         

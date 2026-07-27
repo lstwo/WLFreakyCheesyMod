@@ -1,8 +1,10 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.IO;
 using System.Linq;
 using System.Reflection;
 using BepInEx;
+using BepInEx.Configuration;
 using HarmonyLib;
 using HawkNetworking;
 using UnityEngine;
@@ -43,8 +45,13 @@ public class Plugin : BaseUnityPlugin
 	
 	private static Material skyboxMaterial;
 
+    private static ConfigEntry<string> assetsPath;
+
     private void Awake()
     {
+        assetsPath = Config.Bind("General", "AssetsPath", "");
+        FakePlugin.AssetsPath = string.IsNullOrEmpty(assetsPath.Value.Trim()) ? Path.Combine(Path.GetDirectoryName(GetType().Assembly.Location), "assets") : Path.GetFullPath(assetsPath.Value.Trim());
+        
 	    FakePlugin.startCoroutine += _StartCoroutine;
 	    
         Instance = this;
@@ -82,9 +89,9 @@ public class Plugin : BaseUnityPlugin
 	        character.GetPlayerController().SetAllowedToRespawn(FakePlugin.playerRevives, true);
         };
         
-        FakePlugin.freakyCheesyTex = AssetLoader.LoadTexture(Application.streamingAssetsPath + "/freakycheesy.png");
-        AssetLoader.LoadAudio(Application.streamingAssetsPath + "/freakycheesy.wav", clip => FakePlugin.freakyCheesyClip = clip);
-        AssetLoader.LoadAudio(Application.streamingAssetsPath + "/shoot.wav", clip => FakePlugin.uhh = clip);
+        FakePlugin.freakyCheesyTex = AssetLoader.LoadTexture(FakePlugin.AssetsPath + "/freakycheesy.png");
+        AssetLoader.LoadAudio(FakePlugin.AssetsPath + "/freakycheesy.wav", clip => FakePlugin.freakyCheesyClip = clip);
+        AssetLoader.LoadAudio(FakePlugin.AssetsPath + "/shoot.wav", clip => FakePlugin.uhh = clip);
 
         FakePlugin.SpawnNewEnemy += CreateEnemy;
         
@@ -189,7 +196,7 @@ public class Plugin : BaseUnityPlugin
         {
 	        var obj = new GameObject("Jumpscare");
 	        var video = obj.AddComponent<VideoPlayer>();
-	        video.url = Application.streamingAssetsPath + "/jump.mp4";
+	        video.url = FakePlugin.AssetsPath + "/jump.mp4";
 	        video.renderMode = VideoRenderMode.CameraNearPlane;
 		    video.audioOutputMode = VideoAudioOutputMode.Direct;
 	        video.playOnAwake = false;

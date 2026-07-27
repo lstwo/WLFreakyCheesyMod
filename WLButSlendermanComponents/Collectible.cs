@@ -6,7 +6,7 @@ public class Collectible : ActionInteract
 {
     private void Start()
     {
-        var tex = AssetLoader.LoadTexture($"{Application.streamingAssetsPath}/DefaultIcon.png");
+        var tex = AssetLoader.LoadTexture($"{FakePlugin.AssetsPath}/DefaultIcon.png");
         
         var mat = new Material(Shader.Find("Unlit/Texture"));
         mat.mainTexture = tex;
