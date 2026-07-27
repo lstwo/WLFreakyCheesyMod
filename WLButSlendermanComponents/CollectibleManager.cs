@@ -24,15 +24,7 @@ public static class CollectibleManager
 
             if (collectedPfps == 20)
             {
-                if (FakePlugin.heartBeatSource == null)
-                {
-                    FakePlugin.heartBeatSource = FMODAudioSource.AddTo(GameInstance.Instance.GetFirstLocalPlayerController().GetGameplayCamera().gameObject);
-                    FakePlugin.heartBeatSource.loop = true;
-                    FakePlugin.heartBeatSource.clip = Enemy.heartBeatClip;
-                    FakePlugin.heartBeatSource.volume = 0.25f;
-                }
-
-                FakePlugin.heartBeatSource.PlayOneShot(FakePlugin.uhh);
+                FMODAudio.PlayOneShot(FakePlugin.uhh, FakePlugin.uhhVolume);
 
                 /*if (HawkNetworkManager.DefaultInstance.IsOffline() || HawkNetworkManager.DefaultInstance.GetMe().IsHost)
                 {

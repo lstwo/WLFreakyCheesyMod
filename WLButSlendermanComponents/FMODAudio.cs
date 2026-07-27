@@ -127,6 +127,21 @@ public static class FMODAudio
         return CoreSystem.playSound(sound, MasterGroup, true, out var channel) == RESULT.OK ? channel : default;
     }
 
+    public static void PlayOneShot(Sound sound, float volume = 1f)
+    {
+        var channel = PlayPaused(sound);
+
+        if (!channel.hasHandle())
+        {
+            return;
+        }
+
+        channel.setMode(MODE._2D | MODE.LOOP_OFF);
+        channel.setLoopCount(0);
+        channel.setVolume(volume * SfxVolume);
+        channel.setPaused(false);
+    }
+
     public static bool IsPlaying(Channel channel)
     {
         return channel.hasHandle() && channel.isPlaying(out var playing) == RESULT.OK && playing;

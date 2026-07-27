@@ -102,6 +102,7 @@ public class Enemy : HawkNetworkBehaviour
 
         if (timeSinceLastSound > 6 && sounds.TryGetValue(state, out var sound))
         {
+            audioSource.volume = FakePlugin.enemyVoiceVolume;
             audioSource.PlayOneShot(sound);
             timeSinceLastSound = 0;
         }
@@ -127,7 +128,13 @@ public class Enemy : HawkNetworkBehaviour
             }
 
             FakePlugin.heartBeatSource.clip = heartBeatClip;
-            FakePlugin.heartBeatSource.Play();
+            FakePlugin.heartBeatSource.volume = FakePlugin.heartBeatVolume;
+
+            if (!FakePlugin.heartBeatSource.isPlaying)
+            {
+                FakePlugin.heartBeatSource.Play();
+            }
+
             FakePlugin.ToggleEffects(true);
         }
         else
@@ -160,6 +167,9 @@ public class Enemy : HawkNetworkBehaviour
 
         audioSource.dopplerLevel = 0;
         audioSource.spatial = true;
+        audioSource.volume = FakePlugin.enemyVoiceVolume;
+        audioSource.minDistance = 1f;
+        audioSource.maxDistance = 500f;
 
         light = GetComponentInChildren<Light>();
         

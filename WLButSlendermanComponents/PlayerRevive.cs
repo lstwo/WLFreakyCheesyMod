@@ -76,6 +76,7 @@ public class PlayerRevive : MonoBehaviour
             if (!audioSource.isPlaying)
             {
                 audioSource.clip = FakePlugin.freakyCheesyClip;
+                audioSource.volume = FakePlugin.reviveVolume;
                 audioSource.Play();
             }
         }

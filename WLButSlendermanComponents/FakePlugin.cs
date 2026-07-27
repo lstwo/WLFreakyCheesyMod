@@ -29,6 +29,11 @@ public class FakePlugin
 
     public static Sound shootSound;
     
+    public static float heartBeatVolume = 0.1f;
+    public static float enemyVoiceVolume = 0.1f;
+    public static float reviveVolume = .075f;
+    public static float uhhVolume = .1f;
+
     public static Dictionary<PlayerController, PlayerRevive> playerRevives = new();
     public static int collectiblesCount = 40;
 

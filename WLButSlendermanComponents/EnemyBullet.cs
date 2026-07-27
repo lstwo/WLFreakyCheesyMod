@@ -27,6 +27,8 @@ public class EnemyBullet : HawkNetworkBehaviour
         targetPos = transform.position + Random.onUnitSphere * 5;
         audioSource = FMODAudioSource.ReplaceOn(gameObject);
         audioSource.spatial = true;
+        audioSource.minDistance = 1f;
+        audioSource.maxDistance = 400f;
         audioSource.clip = FakePlugin.shootSound;
     }
 

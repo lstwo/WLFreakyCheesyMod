@@ -20,7 +20,7 @@ public class FMODAudioSource : MonoBehaviour
     public float maxDistance = 500f;
 
     private Channel channel;
-    private readonly List<Channel> oneShots = new();
+    private readonly List<OneShot> oneShots = new();
 
     public bool isPlaying => FMODAudio.IsPlaying(channel);
 
@@ -45,13 +45,13 @@ public class FMODAudioSource : MonoBehaviour
         channel = StartChannel(clip, loop);
     }
 
-    public void PlayOneShot(Sound sound)
+    public void PlayOneShot(Sound sound, float volumeScale = 1f)
     {
-        var oneShot = StartChannel(sound, false);
+        var oneShot = StartChannel(sound, false, volumeScale);
 
         if (oneShot.hasHandle())
         {
-            oneShots.Add(oneShot);
+            oneShots.Add(new OneShot { channel = oneShot, volumeScale = volumeScale });
         }
     }
 
@@ -60,7 +60,7 @@ public class FMODAudioSource : MonoBehaviour
         FMODAudio.Stop(ref channel);
     }
 
-    private Channel StartChannel(Sound sound, bool looped)
+    private Channel StartChannel(Sound sound, bool looped, float volumeScale = 1f)
     {
         var newChannel = FMODAudio.PlayPaused(sound);
 
@@ -69,23 +69,25 @@ public class FMODAudioSource : MonoBehaviour
             return default;
         }
 
-        newChannel.setMode((spatial ? MODE._3D | MODE._3D_WORLDRELATIVE | MODE._3D_INVERSETAPEREDROLLOFF : MODE._2D)
+        // Linear rolloff is what the prefabs were authored with; FMOD's default inverse rolloff
+        // drops off far faster and makes the enemy inaudible at chase range.
+        newChannel.setMode((spatial ? MODE._3D | MODE._3D_WORLDRELATIVE | MODE._3D_LINEARROLLOFF : MODE._2D)
                            | (looped ? MODE.LOOP_NORMAL : MODE.LOOP_OFF));
         newChannel.setLoopCount(looped ? -1 : 0);
-        Apply(newChannel);
+        Apply(newChannel, volumeScale);
         newChannel.setPaused(false);
 
         return newChannel;
     }
 
-    private void Apply(Channel target)
+    private void Apply(Channel target, float volumeScale)
     {
         if (!target.hasHandle())
         {
             return;
         }
 
-        target.setVolume(volume * FMODAudio.SfxVolume);
+        target.setVolume(volume * volumeScale * FMODAudio.SfxVolume);
 
         if (!spatial)
         {
@@ -110,17 +112,17 @@ public class FMODAudioSource : MonoBehaviour
 
     private void LateUpdate()
     {
-        Apply(channel);
+        Apply(channel, 1f);
 
         for (var i = oneShots.Count - 1; i >= 0; i--)
         {
-            if (!FMODAudio.IsPlaying(oneShots[i]))
+            if (!FMODAudio.IsPlaying(oneShots[i].channel))
             {
                 oneShots.RemoveAt(i);
                 continue;
             }
 
-            Apply(oneShots[i]);
+            Apply(oneShots[i].channel, oneShots[i].volumeScale);
         }
     }
 
@@ -130,10 +132,16 @@ public class FMODAudioSource : MonoBehaviour
 
         for (var i = 0; i < oneShots.Count; i++)
         {
-            var oneShot = oneShots[i];
+            var oneShot = oneShots[i].channel;
             FMODAudio.Stop(ref oneShot);
         }
 
         oneShots.Clear();
+    }
+
+    private struct OneShot
+    {
+        public Channel channel;
+        public float volumeScale;
     }
 }
