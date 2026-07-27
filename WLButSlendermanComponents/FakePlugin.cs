@@ -6,6 +6,7 @@ using UnityEngine.Rendering.PostProcessing;
 using UnityEngine.Video;
 using Object = UnityEngine.Object;
 using Random = UnityEngine.Random;
+using Sound = FMOD.Sound;
 
 namespace WLButSlenderman;
 
@@ -15,8 +16,8 @@ public class FakePlugin
     
     public static AssetBundle bundle;
     public static Texture2D freakyCheesyTex;
-    public static AudioClip freakyCheesyClip;
-    public static AudioClip uhh;
+    public static Sound freakyCheesyClip;
+    public static Sound uhh;
 
     public static GameObject enemyPrefab;
     public static GameObject collectiblePrefab;
@@ -24,9 +25,9 @@ public class FakePlugin
     public static PostProcessProfile chasingPostProcessing;
     
     public static PostProcessVolume chasingVolume;
-    public static AudioSource heartBeatSource;
+    public static FMODAudioSource heartBeatSource;
 
-    public static AudioClip shootSound;
+    public static Sound shootSound;
     
     public static Dictionary<PlayerController, PlayerRevive> playerRevives = new();
     public static int collectiblesCount = 40;

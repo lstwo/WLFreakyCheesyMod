@@ -1,35 +1,17 @@
 using System;
-using System.Collections;
 using System.IO;
 using UnityEngine;
-using UnityEngine.Networking;
+using Sound = FMOD.Sound;
 
 namespace WLButSlenderman;
 
 public static class AssetLoader
 {
-    public static void LoadAudio(string path, Action<AudioClip> callback = null)
+    public static void LoadAudio(string path, Action<Sound> callback = null)
     {
-        FakePlugin.StartCoroutine(LoadWav(path, callback));
+        FMODAudio.LoadSound(path, callback);
     }
-    
-    private static IEnumerator LoadWav(string path, Action<AudioClip> callback)
-    {
-        var url = "file://" + path;
 
-        using var www = UnityWebRequestMultimedia.GetAudioClip(url, AudioType.WAV);
-        yield return www.SendWebRequest();
-
-        if (www.result != UnityWebRequest.Result.Success)
-        {
-            Debug.LogError("Failed to load WAV: " + www.error);
-            yield break;
-        }
-        
-        var clip = DownloadHandlerAudioClip.GetContent(www);
-        callback?.Invoke(clip);
-    }
-    
     public static Texture2D LoadTexture(string filePath)
     {
         if (!File.Exists(filePath)) return null;

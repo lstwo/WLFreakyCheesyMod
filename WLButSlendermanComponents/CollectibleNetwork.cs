@@ -7,7 +7,7 @@ public class CollectibleNetwork : HawkNetworkBehaviour
     private byte RPC_COLLECT;
     private bool collected;
 
-    protected override void RegisterRPCs(HawkNetworkObject networkObject)
+    public override void RegisterRPCs(HawkNetworkObject networkObject)
     {
         base.RegisterRPCs(networkObject);
 

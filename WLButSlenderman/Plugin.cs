@@ -62,7 +62,7 @@ public class Plugin : BaseUnityPlugin
 	        controller.ServerSetAllowedCustomClothingAbilities(false);
 	        var go = new GameObject("revive");
 	        var revive = go.AddComponent<PlayerRevive>();
-	        var source = go.AddComponent<AudioSource>();
+	        var source = FMODAudioSource.AddTo(go);
 	        source.playOnAwake = false;
 	        source.loop = false;
 	        source.clip = FakePlugin.freakyCheesyClip;
@@ -157,6 +157,11 @@ public class Plugin : BaseUnityPlugin
         Logger.LogInfo($"Plugin {MyPluginInfo.PLUGIN_GUID} is loaded!");
     }
 
+    private void OnDestroy()
+    {
+	    FMODAudio.ReleaseAll();
+    }
+
     private IEnumerator OnAssignedPlayerCharacter(PlayerCharacter character)
     {
 	    yield return new WaitUntil(() => character.GetPlayerController() != null);
@@ -186,6 +191,7 @@ public class Plugin : BaseUnityPlugin
 	        var video = obj.AddComponent<VideoPlayer>();
 	        video.url = Application.streamingAssetsPath + "/jump.mp4";
 	        video.renderMode = VideoRenderMode.CameraNearPlane;
+		    video.audioOutputMode = VideoAudioOutputMode.Direct;
 	        video.playOnAwake = false;
 	        video.loopPointReached += source => obj.SetActive(false);
 	        FakePlugin.jumpscare = video;

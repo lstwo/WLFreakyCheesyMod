@@ -13,7 +13,7 @@ public class Collectible : ActionInteract
         GetComponent<MeshRenderer>().material = mat;
     }
     
-    protected override void OnInteract(PlayerController playerController)
+    public override void OnInteract(PlayerController playerController)
     {
         GetComponent<CollectibleNetwork>().Collect();
     }

@@ -26,11 +26,12 @@ public static class CollectibleManager
             {
                 if (FakePlugin.heartBeatSource == null)
                 {
-                    FakePlugin.heartBeatSource = GameInstance.Instance.GetFirstLocalPlayerController().GetGameplayCamera().gameObject.AddComponent<AudioSource>();
+                    FakePlugin.heartBeatSource = FMODAudioSource.AddTo(GameInstance.Instance.GetFirstLocalPlayerController().GetGameplayCamera().gameObject);
                     FakePlugin.heartBeatSource.loop = true;
                     FakePlugin.heartBeatSource.clip = Enemy.heartBeatClip;
+                    FakePlugin.heartBeatSource.volume = 0.25f;
                 }
-                
+
                 FakePlugin.heartBeatSource.PlayOneShot(FakePlugin.uhh);
 
                 /*if (HawkNetworkManager.DefaultInstance.IsOffline() || HawkNetworkManager.DefaultInstance.GetMe().IsHost)
@@ -40,12 +41,6 @@ public static class CollectibleManager
                         FakePlugin.startCoroutine(FakePlugin.TeleportRoutine(player));
                     }
                 }*/
-            }
-		    
-            if (collectedPfps >= totalPfps)
-            {
-                Process.Start($"{Application.streamingAssetsPath}/end.wav");
-                //Application.Quit();
             }
         }
     }

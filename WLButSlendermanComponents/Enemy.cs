@@ -7,6 +7,7 @@ using HawkNetworking;
 using UnityEngine;
 using UnityEngine.Rendering.PostProcessing;
 using Random = UnityEngine.Random;
+using Sound = FMOD.Sound;
 
 namespace WLButSlenderman;
 
@@ -14,16 +15,16 @@ public class Enemy : HawkNetworkBehaviour
 {
     private Vector3 targetPos;
     private State state;
-    private AudioSource audioSource;
+    private FMODAudioSource audioSource;
     private float timeSinceLastSeen;
     private PlayerCharacter currentlyChasingPlayer;
     private float timeSinceLastSound = 0;
-    private Dictionary<State, AudioClip> sounds = new();
+    private Dictionary<State, Sound> sounds = new();
     private Texture2D regularTex;
     private Texture2D chasingTex;
     private MeshRenderer meshRenderer;
     private Light light;
-    internal static AudioClip heartBeatClip;
+    internal static Sound heartBeatClip;
 
     private float timeSinceLastBlast;
     
@@ -34,7 +35,7 @@ public class Enemy : HawkNetworkBehaviour
     private byte RPC_PLAYER_DIE;
     private byte RPC_INFORM_PLAYER;
 
-    protected override void Awake()
+    public override void Awake()
     {
         base.Awake();
 
@@ -52,12 +53,6 @@ public class Enemy : HawkNetworkBehaviour
         {
             networkObject.SendRPC(RPC_INFORM_PLAYER, connection, CollectibleManager.CollectedPfps);
         };
-
-        if (FindObjectOfType<AudioListener>() == null)
-        {
-            GameInstance.Instance.GetFirstLocalPlayerController().GetGameplayCamera().gameObject
-                .AddComponent<AudioListener>();
-        }
     }
 
     private void ClientInformPlayer(HawkNetReader reader, HawkRPCInfo info)
@@ -105,9 +100,9 @@ public class Enemy : HawkNetworkBehaviour
         var playerId = reader.ReadUInt32();
         var player = GameInstance.Instance.GetPlayerControllerByNetworkID(playerId);
 
-        if (timeSinceLastSound > 6)
+        if (timeSinceLastSound > 6 && sounds.TryGetValue(state, out var sound))
         {
-            audioSource.PlayOneShot(sounds[state]);
+            audioSource.PlayOneShot(sound);
             timeSinceLastSound = 0;
         }
         
@@ -127,11 +122,11 @@ public class Enemy : HawkNetworkBehaviour
 
             if (FakePlugin.heartBeatSource == null)
             {
-                FakePlugin.heartBeatSource = player.GetGameplayCamera().gameObject.AddComponent<AudioSource>();
+                FakePlugin.heartBeatSource = FMODAudioSource.AddTo(player.GetGameplayCamera().gameObject);
                 FakePlugin.heartBeatSource.loop = true;
-                FakePlugin.heartBeatSource.clip = heartBeatClip;
             }
-            
+
+            FakePlugin.heartBeatSource.clip = heartBeatClip;
             FakePlugin.heartBeatSource.Play();
             FakePlugin.ToggleEffects(true);
         }
@@ -148,7 +143,7 @@ public class Enemy : HawkNetworkBehaviour
         }
     }
 
-    protected override void RegisterRPCs(HawkNetworkObject networkObject)
+    public override void RegisterRPCs(HawkNetworkObject networkObject)
     {
         base.RegisterRPCs(networkObject);
 
@@ -157,14 +152,14 @@ public class Enemy : HawkNetworkBehaviour
         RPC_INFORM_PLAYER = networkObject.RegisterRPC(ClientInformPlayer);
     }
 
-    protected override void NetworkStart(HawkNetworkObject networkObject)
+    public override void NetworkStart(HawkNetworkObject networkObject)
     {
         base.NetworkStart(networkObject);
         meshRenderer = GetComponentInChildren<MeshRenderer>();
-        audioSource = GetComponent<AudioSource>();
+        audioSource = FMODAudioSource.ReplaceOn(gameObject);
 
         audioSource.dopplerLevel = 0;
-        audioSource.spatialBlend = 1;
+        audioSource.spatial = true;
 
         light = GetComponentInChildren<Light>();
         
@@ -175,7 +170,7 @@ public class Enemy : HawkNetworkBehaviour
         regularTex = FakePlugin.freakyCheesyTex;
     }
 
-    protected override void NetworkPost(HawkNetworkObject networkObject)
+    public override void NetworkPost(HawkNetworkObject networkObject)
     {
         base.NetworkPost(networkObject);
         StartCoroutine(Routine());

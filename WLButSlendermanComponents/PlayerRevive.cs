@@ -7,7 +7,7 @@ namespace WLButSlenderman;
 public class PlayerRevive : MonoBehaviour
 {
     public PlayerController playerController;
-    public AudioSource audioSource;
+    public FMODAudioSource audioSource;
 
     private float reviveTime;
 
@@ -75,6 +75,7 @@ public class PlayerRevive : MonoBehaviour
 
             if (!audioSource.isPlaying)
             {
+                audioSource.clip = FakePlugin.freakyCheesyClip;
                 audioSource.Play();
             }
         }

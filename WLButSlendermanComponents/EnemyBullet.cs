@@ -10,12 +10,12 @@ public class EnemyBullet : HawkNetworkBehaviour
     private Vector3 startPosition;
     private bool isFollowing;
     private float timer;
-    private AudioSource audioSource;
+    private FMODAudioSource audioSource;
     
     public float offset = 1;
     public Vector3 finalTargetPos;
 
-    protected override void NetworkPost(HawkNetworkObject networkObject)
+    public override void NetworkPost(HawkNetworkObject networkObject)
     {
         base.NetworkPost(networkObject);
 
@@ -25,7 +25,8 @@ public class EnemyBullet : HawkNetworkBehaviour
         }
         
         targetPos = transform.position + Random.onUnitSphere * 5;
-        audioSource = GetComponent<AudioSource>();
+        audioSource = FMODAudioSource.ReplaceOn(gameObject);
+        audioSource.spatial = true;
         audioSource.clip = FakePlugin.shootSound;
     }
 
