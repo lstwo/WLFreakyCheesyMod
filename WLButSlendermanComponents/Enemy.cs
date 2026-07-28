@@ -5,7 +5,9 @@ using System.Diagnostics;
 using System.Linq;
 using HawkNetworking;
 using UnityEngine;
+using UnityEngine.Rendering;
 using UnityEngine.Rendering.PostProcessing;
+using Debug = UnityEngine.Debug;
 using Random = UnityEngine.Random;
 using Sound = FMOD.Sound;
 
@@ -30,6 +32,12 @@ public class Enemy : HawkNetworkBehaviour
     
     public static Dictionary<PlayerController, bool> deadPlayers = new();
     private static readonly int Glossiness = Shader.PropertyToID("_Glossiness");
+    private static readonly int EmissionMap = Shader.PropertyToID("_EmissionMap");
+    private static readonly int EmissionColor = Shader.PropertyToID("_EmissionColor");
+    private static readonly int Mode = Shader.PropertyToID("_Mode");
+    private static readonly int Cutoff = Shader.PropertyToID("_Cutoff");
+
+    private static readonly string[] FaceShaders = { "Unlit/Transparent", "Sprites/Default", "Unlit/Transparent Cutout" };
 
     private byte RPC_SOUND;
     private byte RPC_PLAYER_DIE;
@@ -83,9 +91,7 @@ public class Enemy : HawkNetworkBehaviour
 
         if (character.GetPlayerController().networkObject.IsOwner())
         {
-            FakePlugin.jumpscare.gameObject.SetActive(true);
-            FakePlugin.jumpscare.targetCamera = character.GetGameplayCamera().GetCamera();
-            FakePlugin.jumpscare.Play();
+            FakePlugin.PlayJumpscare(character.GetGameplayCamera().GetCamera());
         }
         
         if (deadPlayers.All(x => x.Value || !x.Key))
@@ -109,8 +115,8 @@ public class Enemy : HawkNetworkBehaviour
         
         if (state == State.Chasing)
         {
-            meshRenderer.material.mainTexture = chasingTex;
-            
+            SetFace(chasingTex);
+
             print(player);
             print(player?.networkObject);
             print(player?.networkObject?.IsOwner());
@@ -139,7 +145,7 @@ public class Enemy : HawkNetworkBehaviour
         }
         else
         {
-            meshRenderer.material.mainTexture = regularTex;
+            SetFace(regularTex);
 
             if (FakePlugin.heartBeatSource != null && FakePlugin.heartBeatSource.isPlaying)
             {
@@ -172,12 +178,61 @@ public class Enemy : HawkNetworkBehaviour
         audioSource.maxDistance = 500f;
 
         light = GetComponentInChildren<Light>();
-        
-        var mat = new Material(Shader.Find("Standard"));
-        mat.mainTexture = FakePlugin.freakyCheesyTex;
-        mat.SetFloat(Glossiness, 0);
-        meshRenderer.material = mat;
+
+        meshRenderer.material = CreateFaceMaterial();
         regularTex = FakePlugin.freakyCheesyTex;
+        SetFace(FakePlugin.freakyCheesyTex);
+    }
+
+    private static Material CreateFaceMaterial()
+    {
+        foreach (var shaderName in FaceShaders)
+        {
+            var shader = Shader.Find(shaderName);
+
+            if (shader == null)
+            {
+                continue;
+            }
+
+            Debug.Log($"[WLButSlenderman] Cheesy is rendering with '{shaderName}'.");
+            return new Material(shader);
+        }
+
+        var standard = Shader.Find("Standard");
+
+        if (standard == null)
+        {
+            Debug.LogError("[WLButSlenderman] No usable shader found for Cheesy, he will be invisible.");
+            return null;
+        }
+
+        Debug.LogWarning("[WLButSlenderman] No unlit shader in the build, falling back to Standard cutout.");
+
+        var mat = new Material(standard);
+        mat.SetFloat(Mode, 1f);
+        mat.SetFloat(Cutoff, 0.5f);
+        mat.SetFloat(Glossiness, 0f);
+        mat.EnableKeyword("_ALPHATEST_ON");
+        mat.EnableKeyword("_EMISSION");
+        mat.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeEmissive;
+        mat.SetColor(EmissionColor, Color.white * FakePlugin.enemyEmission);
+        mat.renderQueue = (int)RenderQueue.AlphaTest;
+
+        return mat;
+    }
+
+    private void SetFace(Texture2D texture)
+    {
+        var mat = meshRenderer.material;
+
+        if (mat == null)
+        {
+            return;
+        }
+
+        mat.mainTexture = texture;
+        mat.SetTexture(EmissionMap, texture);
     }
 
     public override void NetworkPost(HawkNetworkObject networkObject)

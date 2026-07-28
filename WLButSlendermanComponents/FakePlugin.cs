@@ -30,11 +30,15 @@ public class FakePlugin
     public static FMODAudioSource heartBeatSource;
 
     public static Sound shootSound;
+    public static Sound jumpscareClip;
     
     public static float heartBeatVolume = 0.1f;
     public static float enemyVoiceVolume = 0.1f;
     public static float reviveVolume = .075f;
     public static float uhhVolume = .1f;
+    public static float jumpscareVolume = 1f;
+
+    public static float enemyEmission = 20000f;
 
     public static Dictionary<PlayerController, PlayerRevive> playerRevives = new();
     public static int collectiblesCount = 40;
@@ -46,6 +50,16 @@ public class FakePlugin
     public static void StartCoroutine(IEnumerator routine)
     {
         startCoroutine?.Invoke(routine);
+    }
+
+    public static void PlayJumpscare(Camera camera)
+    {
+        jumpscare.gameObject.SetActive(true);
+        jumpscare.targetCamera = camera;
+        jumpscare.audioOutputMode = jumpscareClip.hasHandle()
+            ? VideoAudioOutputMode.None
+            : VideoAudioOutputMode.Direct;
+        jumpscare.Play();
     }
 
     public static void ToggleEffects(bool b)

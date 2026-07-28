@@ -92,6 +92,7 @@ public class Plugin : BaseUnityPlugin
         FakePlugin.freakyCheesyTex = AssetLoader.LoadTexture(FakePlugin.AssetsPath + "/freakycheesy.png");
         AssetLoader.LoadAudio(FakePlugin.AssetsPath + "/freakycheesy.wav", clip => FakePlugin.freakyCheesyClip = clip);
         AssetLoader.LoadAudio(FakePlugin.AssetsPath + "/shoot.wav", clip => FakePlugin.uhh = clip);
+        AssetLoader.LoadAudio(FakePlugin.AssetsPath + "/jump.wav", clip => FakePlugin.jumpscareClip = clip);
 
         FakePlugin.SpawnNewEnemy += CreateEnemy;
         
@@ -198,9 +199,17 @@ public class Plugin : BaseUnityPlugin
 	        var video = obj.AddComponent<VideoPlayer>();
 	        video.url = FakePlugin.AssetsPath + "/jump.mp4";
 	        video.renderMode = VideoRenderMode.CameraNearPlane;
-		    video.audioOutputMode = VideoAudioOutputMode.Direct;
 	        video.playOnAwake = false;
 	        video.loopPointReached += source => obj.SetActive(false);
+
+	        video.started += source =>
+	        {
+		        if (FakePlugin.jumpscareClip.hasHandle())
+		        {
+			        FMODAudio.PlayOneShot(FakePlugin.jumpscareClip, FakePlugin.jumpscareVolume);
+		        }
+	        };
+
 	        FakePlugin.jumpscare = video;
 	        obj.SetActive(false);
         }
